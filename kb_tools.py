@@ -1,4 +1,3 @@
-
 import os
 import re
 import unicodedata
@@ -17,10 +16,12 @@ MAX_READ_LINES = 400
 
 
 def _nfc(text: str) -> str:
+    """Normalize to Unicode NFC so queries match the NFC-normalized corpus."""
     return unicodedata.normalize("NFC", text)
 
 
 def _safe_path(filename: str) -> Path:
+    """Resolve a filename inside KB_DIR and refuse anything that escapes it."""
     candidate = (KB_DIR / filename).resolve()
     if KB_DIR not in candidate.parents and candidate != KB_DIR:
         raise ValueError("Path escapes the knowledge base directory.")
@@ -33,6 +34,7 @@ def _docs() -> list[Path]:
 
 @tool
 def list_documents() -> str:
+    
     files = _docs()
     if not files:
         return f"The knowledge base at {KB_DIR} is empty. Run ingest.py first."
@@ -42,6 +44,7 @@ def list_documents() -> str:
 
 @tool
 def find_documents(name_contains: str) -> str:
+    
     sub = name_contains.lower()
     files = [p for p in _docs() if sub in p.name.lower()]
     if not files:
@@ -51,6 +54,7 @@ def find_documents(name_contains: str) -> str:
 
 @tool
 def search_documents(query: str, max_results: int = 20, context_lines: int = 2) -> str:
+    
     q = _nfc(query)
     try:
         pattern = re.compile(q, re.IGNORECASE)
@@ -82,6 +86,7 @@ def search_documents(query: str, max_results: int = 20, context_lines: int = 2) 
 
 @tool
 def read_document(filename: str, start_line: int = 1, end_line: int = 200) -> str:
+   
     try:
         path = _safe_path(filename)
     except ValueError as exc:
