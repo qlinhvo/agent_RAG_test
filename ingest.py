@@ -1,17 +1,3 @@
-"""
-ingest.py — Step 1 of the pipeline.
-
-Takes a list of files (or folders), parses each one to Markdown, normalizes the
-text to Unicode NFC (important for Vietnamese/CJC matching), and writes the
-result into ./knowledge_base/ as <name>.md. This folder is the "filesystem" the
-agent will search with grep/ls/find-style tools in agent.py.
-
-Usage:
-    python ingest.py --demo                  # create + ingest a few sample docs
-    python ingest.py report.pdf notes.docx   # ingest specific files
-    python ingest.py ./my_source_folder      # ingest every file in a folder
-"""
-
 import json
 import sys
 import unicodedata
@@ -35,7 +21,6 @@ def to_markdown(src: Path) -> str:
 
 
 def _collect(paths) -> list[Path]:
-    """Expand the given paths (files and/or directories) into a flat file list."""
     files: list[Path] = []
     for raw in paths:
         p = Path(raw)
@@ -49,7 +34,6 @@ def _collect(paths) -> list[Path]:
 
 
 def _unique_name(stem: str, manifest: dict) -> str:
-    """Make a safe, collision-free '<name>.md' output filename."""
     base = "".join(c if (c.isalnum() or c in "-_ ") else "_" for c in stem).strip()
     base = base.replace(" ", "_") or "doc"
     name, i = f"{base}.md", 1
