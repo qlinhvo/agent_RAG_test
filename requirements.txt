@@ -1,0 +1,5 @@
+# Core agent framework
+langchain>=1.0.0
+langgraph>=0.2.0
+langchain-google-genai>=2.0.0
+markitdown[all]>=0.0.1
