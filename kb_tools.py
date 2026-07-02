@@ -55,7 +55,6 @@ def search_documents(query: str, max_results: int = 20, context_lines: int = 2) 
     try:
         pattern = re.compile(q, re.IGNORECASE)
     except re.error:
-        # Not valid regex -> treat as a literal string.
         pattern = re.compile(re.escape(q), re.IGNORECASE)
 
     cap = min(max_results, MAX_RESULTS)
