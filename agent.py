@@ -56,7 +56,19 @@ def run_query(question: str, verbose: bool = True) -> str:
 
 
 if __name__ == "__main__":
-    question = " ".join(sys.argv[1:]) or "What was the Q3 revenue?"
-    print(f"Q: {question}\n")
-    answer = run_query(question)
-    print(f"\nA: {answer}")
+    agent = build_agent()
+    while True:
+        try:
+            question = input("Q: ").strip()
+        except (EOFError, KeyboardInterrupt):  
+            print("\nStopped")
+            break
+
+        if question.lower() in {"exit", "quit", "q"}:
+            print("Stopped")
+            break
+        if not question:          
+            continue
+
+        answer = run_query(question)
+        print(f"\nA: {answer}\n")
