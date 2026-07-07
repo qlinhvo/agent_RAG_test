@@ -1,10 +1,14 @@
-
+#!/usr/bin/env python3
 import os
-import sys
+import readline
 
+from dotenv import load_dotenv
+from langchain_core.messages import ToolMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from kb_tools import KB_TOOLS
+
+load_dotenv()
 
 MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.1-flash-lite")
 
@@ -12,7 +16,6 @@ SYSTEM_PROMPT = """You are a knowledge-base research assistant that answers with
 You may ONLY use information found in the knowledge base, which you reach through your tools.
 
 """
-
 
 
 def _make_agent(model, tools):
@@ -37,15 +40,19 @@ def build_agent():
     return _make_agent(model, KB_TOOLS)
 
 
-def run_query(question: str, verbose: bool = True) -> str:
-    agent = build_agent()
-    result = agent.invoke({"messages": [{"role": "user", "content": question}]})
+def run_query(agent, messages: list, question: str, verbose: bool = True) -> tuple[str, list]:
+    messages = messages + [{"role": "user", "content": question}]
+    result = agent.invoke({"messages": messages})
     messages = result["messages"]
 
     if verbose:
         for m in messages:
             for call in getattr(m, "tool_calls", None) or []:
                 print(f"  [tool] {call['name']}({call['args']})")
+            if isinstance(m, ToolMessage):
+                preview = m.content if isinstance(m.content, str) else str(m.content)
+                first_line = preview.splitlines()[0] if preview else "(empty)"
+                print(f"  [result] {first_line}")
 
     content = messages[-1].content
     if isinstance(content, list):
@@ -53,23 +60,28 @@ def run_query(question: str, verbose: bool = True) -> str:
             part.get("text", "") if isinstance(part, dict) else str(part)
             for part in content
         ).strip()
-    return content
+    return content, messages
 
 
 if __name__ == "__main__":
     agent = build_agent()
+    messages: list = []
     while True:
         try:
             question = input("Q: ").strip()
-        except (EOFError, KeyboardInterrupt):  
+        except (EOFError, KeyboardInterrupt):
             print("\nStopped")
             break
 
         if question.lower() in {"exit", "quit", "q"}:
             print("Stopped")
             break
-        if not question:          
+        if question.lower() in {"reset", "clear", "new"}:
+            messages = []
+            print("Memory cleared.\n")
+            continue
+        if not question:
             continue
 
-        answer = run_query(question)
+        answer, messages = run_query(agent, messages, question)
         print(f"\nA: {answer}\n")
