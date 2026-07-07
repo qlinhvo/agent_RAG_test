@@ -115,3 +115,56 @@ if __name__ == "__main__":
     else:
         paths = args
     ingest(paths)
+
+    (KB_DIR / "manifest.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    print(f"Done. {len(manifest)} document(s) in {KB_DIR.resolve()}")
+
+
+def create_demo() -> list[str]:
+    demo = Path("sample_docs")
+    demo.mkdir(exist_ok=True)
+
+    (demo / "q3_report.md").write_text(
+        "# Q3 Financial Report\n\n"
+        "Total revenue in Q3 2026 was 12.4 million USD, up 8% from Q2.\n"
+        "Operating costs rose to 7.1 million USD, mainly due to hiring.\n"
+        "Net profit for the quarter was 3.2 million USD.\n"
+        "The board approved a budget increase for the data platform team.\n",
+        encoding="utf-8",
+    )
+    (demo / "security_policy.md").write_text(
+        "# Security Policy\n\n"
+        "## Passwords\n"
+        "Passwords must be at least 12 characters and rotated every 90 days.\n"
+        "Multi-factor authentication is required for all admin accounts.\n\n"
+        "## File access\n"
+        "Access to customer files is granted on a need-to-know basis only.\n",
+        encoding="utf-8",
+    )
+    (demo / "onboarding_guide.md").write_text(
+        "# New Employee Onboarding\n\n"
+        "1. Sign the employment contract and NDA.\n"
+        "2. Request laptop and building access from IT.\n"
+        "3. Complete the security training within the first week.\n"
+        "4. Meet your assigned mentor for a project overview.\n",
+        encoding="utf-8",
+    )
+    (demo / "ghi_chu_vn.md").write_text(
+        "# Ghi chú nội bộ\n\n"
+        "Doanh thu quý 3 tăng trưởng tốt nhờ mảng khách hàng cá nhân.\n"
+        "Cần chuẩn bị báo cáo rủi ro hợp đồng trước cuối tháng.\n",
+        encoding="utf-8",
+    )
+    print(f"Created sample documents in {demo.resolve()}")
+    return [str(demo)]
+
+
+if __name__ == "__main__":
+    args = sys.argv[1:]
+    if not args or args == ["--demo"]:
+        paths = create_demo()
+    else:
+        paths = args
+    ingest(paths)
