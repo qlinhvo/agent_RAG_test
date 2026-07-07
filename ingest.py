@@ -1,3 +1,4 @@
+
 import json
 import sys
 import unicodedata
@@ -34,6 +35,7 @@ def _collect(paths) -> list[Path]:
 
 
 def _unique_name(stem: str, manifest: dict) -> str:
+    """Make a safe, collision-free '<name>.md' output filename."""
     base = "".join(c if (c.isalnum() or c in "-_ ") else "_" for c in stem).strip()
     base = base.replace(" ", "_") or "doc"
     name, i = f"{base}.md", 1
