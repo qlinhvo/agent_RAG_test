@@ -1,69 +1,111 @@
 # Agentic RAG over a folder of Markdown (Gemini 3.1 Flash Lite)
 
 
+
 ```
 ingest.py     files (pdf/docx/...) --> Markdown in ./knowledge_base/  (+ manifest.json)
-kb_tools.py   the tools the agent calls: list / find / search(grep) / read
-agent.py      LangChain agent + Gemini 3.1 Flash Lite -> answers a question
+kb_tools.py   the tools the agent calls: list_documents / find_documents /
+              search_documents (grep) / read_document
+agent.py      LangChain agent + Gemini 3.1 Flash Lite -> interactive Q&A loop
 ```
 
-## 1. Install
+---
+
+## 1. Prerequisites
+
+- Python 3.10 or newer (`python3 --version` to check).
+- A Gemini API key (free tier works) — get one at Google AI Studio:
+  https://aistudio.google.com/apikey
+
+---
+
+## 2. Install
+
+From the project folder:
+
+```bash
+cd /Users/vqlinh020607/Desktop/vscode/agent_RAG_test
+```
+
+(Optional but recommended) create an isolated virtual environment so these
+packages don't mix with anything else on your machine:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+Install the dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## 2. Set your Gemini API key
+`requirements.txt` pulls in `langchain`, `langgraph`, `langchain-google-genai`,
+and `markitdown[all]` (used by `ingest.py` to convert PDFs/DOCX/etc. to Markdown).
+
+---
+
+## 3. Set your Gemini API key
+
+Set it for the current terminal session:
 
 ```bash
-export GOOGLE_API_KEY="gemini_api_key"   # or GEMINI_API_KEY
+export GOOGLE_API_KEY="your_gemini_api_key"   # or GEMINI_API_KEY
 ```
 
-
-## 3. Build the knowledge base
-
+To avoid retyping this every time you open a new terminal, add it to your
+shell profile instead:
 
 ```bash
-python ingest.py --demo
+echo 'export GOOGLE_API_KEY="your_gemini_api_key"' >> ~/.zshrc
+source ~/.zshrc
 ```
 
+Verify it's picked up:
 
 ```bash
-python ingest.py report.pdf notes.docx ./some_folder
+python3 -c "import os; print('set' if os.environ.get('GOOGLE_API_KEY') else 'missing')"
 ```
 
-This writes `*.md` files into `./knowledge_base/`.
+---
 
-## 4. Ask questions
+## 4. Build the knowledge base
+
+Generate and ingest a few sample documents (financial report, security policy,
+onboarding guide, a Vietnamese note) to try things out immediately:
 
 ```bash
-python agent.py "What was the Q3 revenue?"
-python agent.py "What is the password policy?"
-python agent.py "Doanh thu quý 3 thế nào?"
+python3 ingest.py --demo
 ```
 
-You'll see the agent's tool calls (its searches) followed by the final answer.
+Or ingest your own files/folders:
 
-## How it maps to the design
+```bash
+python3 ingest.py report.pdf notes.docx ./some_folder
+```
 
-- **search_documents** is the `grep` core of agentic search. Swap its body for a real
-  `ripgrep` subprocess call for speed at scale (see the note in `kb_tools.py`).
-- **Unicode NFC** normalization is applied on ingest and on every query, so Vietnamese
-  (and CJK) text matches correctly.
-- **Path safety**: every tool is confined to `./knowledge_base/`.
-- **Token efficiency**: results are capped, carry line numbers, and reads are bounded —
-  the agent lists/searches first, then reads only the needed slice.
+This writes one `.md` file per source document into `./knowledge_base/`, plus a
+`manifest.json` recording where each came from. By default the output goes to
+`./knowledge_base` — override with the `KB_DIR` environment variable if you
+want a different location:
 
-## Next steps (not in this prototype)
+```bash
+export KB_DIR="/path/to/another/kb"
+```
 
-- **Sandbox**: run the tools inside a Docker container (network off, read-only mount).
-- **Per-user access control**: store `viewers` per file in `manifest.json`, filter the
-  file list per request, and mount only allowed files — the agent never sees the rest.
-- **Hybrid**: keep this grep path for instant availability, and add a background
-  embedding/graph index that queries upgrade to once it finishes.
+(Set `KB_DIR` the same way before running `agent.py` too, so the agent reads
+from the same place you ingested into.)
 
-## Notes
 
-- Requires LangChain 1.0+ (`create_agent`); `agent.py` falls back to LangGraph's
-  `create_react_agent` automatically if needed.
-- If the model id returns a 404, switch `GEMINI_MODEL` to `gemini-3.1-flash-lite-preview`.
+**Commands available at the `Q:` prompt:**
+| Type              | Effect                                                        |
+|-------------------|----------------------------------------------------------------|
+| any question      | asks the agent, using tools to search/read the knowledge base |
+| `reset` / `clear` / `new` | wipes the conversation history and starts fresh          |
+| `exit` / `quit` / `q`     | ends the session                                          |
+| Ctrl+C / Ctrl+D           | also ends the session                                     |
+
+The `[tool]` / `[result]` lines show you exactly what the agent searched for
+and what it got back, so you can see its reasoning, not just the final answer.
+
