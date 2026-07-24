@@ -1,12 +1,13 @@
-#!/usr/bin/env python3
 import json
 import os
 import readline
+import uuid
 from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 from langchain_core.messages import ToolMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langgraph.checkpoint.memory import MemorySaver
 
 from kb_tools import KB_TOOLS
 
@@ -35,15 +36,19 @@ knowledge.
 """
 
 
-def _make_agent(model, tools):
+def _make_agent(model, tools, checkpointer):
     try:
         from langchain.agents import create_agent
 
-        return create_agent(model, tools=tools, system_prompt=SYSTEM_PROMPT)
+        return create_agent(
+            model, tools=tools, system_prompt=SYSTEM_PROMPT, checkpointer=checkpointer
+        )
     except ImportError:
         from langgraph.prebuilt import create_react_agent
 
-        return create_react_agent(model, tools, prompt=SYSTEM_PROMPT)
+        return create_react_agent(
+            model, tools, prompt=SYSTEM_PROMPT, checkpointer=checkpointer
+        )
 
 
 def build_agent():
@@ -54,7 +59,7 @@ def build_agent():
         )
     os.environ["GOOGLE_API_KEY"] = key
     model = ChatGoogleGenerativeAI(model=MODEL, temperature=0)
-    return _make_agent(model, KB_TOOLS)
+    return _make_agent(model, KB_TOOLS, MemorySaver())
 
 
 def _audit(event: dict) -> None:
@@ -63,11 +68,13 @@ def _audit(event: dict) -> None:
         f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
-def run_query(agent, messages: list, question: str, verbose: bool = True) -> tuple[str, list]:
-    _audit({"type": "question", "question": question})
-    prev_len = len(messages)
-    messages = messages + [{"role": "user", "content": question}]
-    result = agent.invoke({"messages": messages})
+def run_query(agent, thread_id: str, question: str, verbose: bool = True) -> str:
+    config = {"configurable": {"thread_id": thread_id}}
+    prior_state = agent.get_state(config)
+    prev_len = len(prior_state.values.get("messages", [])) if prior_state.values else 0
+
+    _audit({"type": "question", "thread_id": thread_id, "question": question})
+    result = agent.invoke({"messages": [{"role": "user", "content": question}]}, config=config)
     messages = result["messages"]
     new_messages = messages[prev_len + 1:]  # only this turn's messages, not prior history
 
@@ -94,12 +101,12 @@ def run_query(agent, messages: list, question: str, verbose: bool = True) -> tup
             for part in content
         ).strip()
     _audit({"type": "answer", "answer": content})
-    return content, messages
+    return content
 
 
 if __name__ == "__main__":
     agent = build_agent()
-    messages: list = []
+    thread_id = str(uuid.uuid4())
     while True:
         try:
             question = input("Q: ").strip()
@@ -111,11 +118,11 @@ if __name__ == "__main__":
             print("Stopped")
             break
         if question.lower() in {"reset", "clear", "new"}:
-            messages = []
+            thread_id = str(uuid.uuid4())
             print("Memory cleared.\n")
             continue
         if not question:
             continue
 
-        answer, messages = run_query(agent, messages, question)
+        answer = run_query(agent, thread_id, question)
         print(f"\nA: {answer}\n")
